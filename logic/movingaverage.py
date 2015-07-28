@@ -10,18 +10,16 @@ from logic import Indicator
 
 def GetDataPointValue(datapoint):
     result = {}
+    result["value"] = 0.0
 
     if not datapoint:
         return result
 
     if (isinstance(datapoint, Candle)):
         result["value"] = float(datapoint.Close)
-
-    try:
-        if (not result):
-            result["value"]= datapoint["value"]
-    except:
-        result = {}
+        
+    if "value" in datapoint:
+        result["value"] = datapoint["value"]
 
     return result
 
