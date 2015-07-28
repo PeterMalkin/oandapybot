@@ -32,6 +32,7 @@ class CursedUI(object):
         self.stdscr = curses.initscr()
         curses.noecho()
         self.stdscr.keypad(1)
+        self.stdscr.nodelay(1)
 
         self.Update(None)
         self.Render()
@@ -41,6 +42,7 @@ class CursedUI(object):
             return
         
         # deinit curses
+        self.stdscr.nodelay(0)
         self.stdscr.keypad(0)
         curses.echo()
         curses.endwin()

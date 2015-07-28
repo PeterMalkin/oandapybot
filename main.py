@@ -45,6 +45,7 @@ def Main():
 
     # Main UI loop here
     while oa.IsRunning():
+        oa.UpdateSubscribers()
         ui.ProcessUserInput()
         if ui.IsExiting():
             break

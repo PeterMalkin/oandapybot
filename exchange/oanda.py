@@ -2,6 +2,7 @@
 import datetime
 import time
 import threading
+import Queue
 from exchange import oandapy
 from logic.candle import Candle 
 from math import floor
@@ -17,6 +18,7 @@ class OandaPriceStreamer(oandapy.Streamer):
         self.heartbeat_subscribers = []
         self.updates_subscribers = []
         self.update_necessary = True
+        self._queue = Queue.Queue()
         self._thread = threading.Thread(target=OandaPriceStreamer._start,
                                        args=(self,)
                                        )
@@ -48,6 +50,18 @@ class OandaPriceStreamer(oandapy.Streamer):
         self._thread.join()
 
     def on_success(self, data):
+        self._queue.put(data)
+
+    def UpdateSubscribers(self):
+
+        if self._queue.empty():
+            return
+
+        data = self._queue.get_nowait()
+
+        if not data:
+            return
+
         if self.update_necessary:
             for obj in self.updates_subscribers:
                 obj.Update(None)
@@ -220,6 +234,9 @@ class Oanda(object):
 
     def IsRunning(self):
         return self._oanda_price_streamer.IsRunning()
+
+    def UpdateSubscribers(self):
+        self._oanda_price_streamer.UpdateSubscribers()
 
     # Dont care about candles that are smaller then one minute
     # Only a few supported. See details here:
