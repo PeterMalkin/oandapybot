@@ -18,11 +18,16 @@ def GetDataPointValue(datapoint):
     if (isinstance(datapoint, Candle)):
         result["value"] = float(datapoint.Close)
         
-    if "value" in datapoint:
-        result["value"] = datapoint["value"]
+    if (isinstance(datapoint, HeikinAshi)):
+        result["value"] = float(datapoint.close)
+
+    try:
+        if "value" in datapoint:
+            result["value"] = datapoint["value"]
+    except:
+        pass
 
     return result
-
 
 # Base class for real indicators (SimpleMovingAverage, ExponentialMovingAverage)
 class MovingAverage(Indicator):
