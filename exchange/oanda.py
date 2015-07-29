@@ -78,7 +78,7 @@ class OandaPriceStreamer(oandapy.Streamer):
         ask = float(data["tick"]["ask"])
         bid = float(data["tick"]["bid"])
         ts = time.mktime(time.strptime(data["tick"]["time"], '%Y-%m-%dT%H:%M:%S.%fZ')) 
-        price = ask + bid / 2.0
+        price = (ask + bid) / 2.0
 
         datapoint = {}
         datapoint["now"] = datetime.datetime.fromtimestamp(ts)
@@ -140,9 +140,7 @@ class Oanda(object):
         return retValue
 
     def CashInvested(self):
-        netWorth = self.GetNetWorth()
         response = self._oanda.get_positions(self._account_id)
-
         if not response or not response["positions"]:
             return 0.0
 
@@ -150,8 +148,8 @@ class Oanda(object):
         for item in response["positions"]:
             cash += float(item["units"]) * float(item["avgPrice"])
 
-        return netWorth - cash
-    
+        return cash
+
     def CurrentPosition(self):
         try:
             response = self._oanda.get_position(self._account_id, self._instrument)
@@ -175,7 +173,7 @@ class Oanda(object):
         margin_available = response["marginAvail"]
         margin_rate = response["marginRate"]
         response = self._oanda.get_prices(instruments=self._instrument)
-        exchange_rate = float(response["prices"][0]["ask"]) + float(response["prices"][0]["bid"]) / 2.0
+        exchange_rate = ( float(response["prices"][0]["ask"]) + float(response["prices"][0]["bid"]) ) / 2.0
         return int(floor( margin_available * margin_rate / exchange_rate )) 
 
     def Sell(self, units):       
