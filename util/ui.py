@@ -17,6 +17,7 @@ class CursedUI(object):
         self._currentPosition = ""
         self._currentPositionSide = ""
         self._availableUnits = ""
+        self._leverage = ""
         self._currentPrice = ""
         self._heartbeatTime = ""
         self._stoploss_price = ""
@@ -51,18 +52,19 @@ class CursedUI(object):
 
         if not datapoint:
             # Pull balances and positions
-            self._netWorth = self._oanda.GetNetWorth()
-            self._balance = self._oanda.GetBalance()
-            self._cashInvested = self._oanda.CashInvested()
-            self._currentPosition = self._oanda.CurrentPosition()
+            self._netWorth = str(self._oanda.GetNetWorth())
+            self._balance = str(self._oanda.GetBalance())
+            self._cashInvested = str(self._oanda.CashInvested())
+            self._currentPosition = str(self._oanda.CurrentPosition())
             self._currentPositionSide = str(self._oanda.CurrentPositionSide())
-            self._availableUnits = self._oanda.AvailableUnits()
+            self._availableUnits = str(self._oanda.AvailableUnits())
+            self._leverage = str(self._oanda.Leverage())
 
         if ValidateDatapoint(datapoint):
-            self._currentPrice = datapoint["value"]
+            self._currentPrice = str(datapoint["value"])
 
         if self._isHeartbeatUpdate(datapoint):
-            self._heartbeatTime = datapoint["time"] 
+            self._heartbeatTime = str(datapoint["time"])
 
         self._stoploss_price = str(self._strategy.GetStopLossPrice())
         self._trailingstop_price = str(self._strategy.GetTrailingStopPrice())
@@ -140,12 +142,12 @@ class CursedUI(object):
         self.stdscr.addstr(6,0,"Ticker:    "+str(self._currentPrice))
 
         # Account status
-        self.stdscr.addstr(8, 0,"Position:        "+str(self._currentPosition) + " " + str(self._currentPositionSide))
-        self.stdscr.addstr(9, 0,"Balance:         "+str(self._balance))
-        self.stdscr.addstr(10,0,"Available units: "+str(self._availableUnits))
-        self.stdscr.addstr(11,0,"Cash invested:   "+str(self._cashInvested))
-        self.stdscr.addstr(12,0,"Net Worth:       "+str(self._netWorth))
-        
+        self.stdscr.addstr(8, 0,"Position:        "+self._currentPosition + " " + self._currentPositionSide)
+        self.stdscr.addstr(9, 0,"Balance:         "+self._balance)
+        self.stdscr.addstr(10,0,"Available units: "+self._availableUnits)
+        self.stdscr.addstr(11,0,"Cash invested:   "+self._cashInvested + " leverage: "+self._leverage)
+        self.stdscr.addstr(12,0,"Net Worth:       "+self._netWorth)
+
         # Strategy status
         self.stdscr.addstr(14,0,"Stop Loss price:     "+str(self._stoploss_price))
         self.stdscr.addstr(15,0,"Trailing Stop price: "+str(self._trailingstop_price))

@@ -17,6 +17,7 @@ class TrailingStop(Indicator):
         self.current_stop_price = 0.0
         self.state = MarketTrend.NO_STOP
         self.trading_enabled = False
+        self.peak_price = 0.0
 
     def GetState(self):
         return self.state
@@ -33,6 +34,20 @@ class TrailingStop(Indicator):
         
         if not self.trading_enabled:
             return
+        
+        if self.current_stop_price <= 0.0:
+            return
+        
+        # Adjust the stop price if needed
+        if (self.position_type == MarketTrend.ENTER_LONG):
+            if datapoint["value"] > self.peak_price:
+                self.peak_price = datapoint["value"]
+                self.current_stop_price = self.GetPrice(MarketTrend.ENTER_LONG)
+
+        if (self.position_type == MarketTrend.ENTER_SHORT):
+            if datapoint["value"] < self.peak_price:
+                self.peak_price = datapoint["value"]
+                self.current_stop_price = self.GetPrice(MarketTrend.ENTER_SHORT)
 
         # Check if it is time to do a stop trade
         if (self.current_stop_price > 0.0):
@@ -69,6 +84,7 @@ class TrailingStop(Indicator):
     def SetStop(self, position_type = MarketTrend.ENTER_LONG):
         if (position_type != MarketTrend.ENTER_LONG and position_type != MarketTrend.ENTER_SHORT):
             return
+        self.peak_price = self._close[-1]
         self.position_type = position_type
         self.current_stop_price = self.GetPrice(position_type)
         self.state = MarketTrend.NO_STOP
@@ -83,12 +99,11 @@ class TrailingStop(Indicator):
         low = numpy.array(self._low, dtype=float)
         close = numpy.array(self._close, dtype=float)
         ATR = talib.ATR(high, low, close, timeperiod=self.period-1)[-1]
-        stop_price = self._close[-1]
 
         if ( position_type == MarketTrend.ENTER_LONG ):
-            stop_price -= 2.0*ATR
+            stop_price = self.peak_price - 2.0*ATR
         elif ( position_type == MarketTrend.ENTER_SHORT ):
-            stop_price += 2.0*ATR
+            stop_price = self.peak_price + 2.0*ATR
         else:
             stop_price = 0.0
 
@@ -97,3 +112,5 @@ class TrailingStop(Indicator):
     def CancelStop(self):
         self.state = MarketTrend.NO_STOP
         self.current_stop_price = 0.0
+        self.peak_price = 0.0
+        self.trading_enabled = False

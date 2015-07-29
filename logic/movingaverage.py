@@ -1,5 +1,6 @@
 from logic.candle import Candle
 from logic import Indicator
+from logic.heikinashi import HeikinAshi
 
 # Moving averages indicators
 # This implementation is more computationally efficient
@@ -10,24 +11,27 @@ from logic import Indicator
 
 def GetDataPointValue(datapoint):
     result = {}
-    result["value"] = 0.0
 
     if not datapoint:
-        return result
+        return None
 
     if (isinstance(datapoint, Candle)):
         result["value"] = float(datapoint.Close)
+        return result
         
     if (isinstance(datapoint, HeikinAshi)):
         result["value"] = float(datapoint.close)
+        return result
 
     try:
-        if "value" in datapoint:
-            result["value"] = datapoint["value"]
+        if datapoint.has_key("value"):
+            result["value"] = float(datapoint["value"])
+            return result
     except:
-        pass
+        return None
 
-    return result
+    return None
+
 
 # Base class for real indicators (SimpleMovingAverage, ExponentialMovingAverage)
 class MovingAverage(Indicator):

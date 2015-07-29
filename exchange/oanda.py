@@ -156,7 +156,13 @@ class Oanda(object):
             return int(response["units"])
         except:
             return 0
-        
+
+    def Leverage(self):
+        response = self._oanda.get_account(self._account_id)
+        margin_rate = float(response["marginRate"])
+        leverage = 1.0 / margin_rate
+        return leverage
+
     def CurrentPositionSide(self):
         try:
             response = self._oanda.get_position(self._account_id, self._instrument)
@@ -170,11 +176,12 @@ class Oanda(object):
     def AvailableUnits(self):
         response = self._oanda.get_account(self._account_id)
         response["balance"]
-        margin_available = response["marginAvail"]
-        margin_rate = response["marginRate"]
+        margin_available = float(response["marginAvail"])
+        margin_rate = float(response["marginRate"])
+        leverage = 1.0 / margin_rate
         response = self._oanda.get_prices(instruments=self._instrument)
         exchange_rate = ( float(response["prices"][0]["ask"]) + float(response["prices"][0]["bid"]) ) / 2.0
-        return int(floor( margin_available * margin_rate / exchange_rate )) 
+        return int(floor( margin_available * leverage / exchange_rate ))
 
     def Sell(self, units):       
         self._oanda.create_order(self._account_id,
