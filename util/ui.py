@@ -12,6 +12,7 @@ class CursedUI(object):
         self.stdscr = None
         # The stats to show
         self._netWorth = ""
+        self._unrealizedPnL = ""
         self._balance = ""
         self._cashInvested = ""
         self._currentPosition = ""
@@ -23,12 +24,12 @@ class CursedUI(object):
         self._stoploss_price = ""
         self._trailingstop_price = ""
         self._is_exiting = False
-        
+
     def Start(self):
         self._oanda.SubscribeHeartbeat(self)
         self._oanda.SubscribeTicker(self)
         self._oanda.SubscribeUpdates(self)
-        
+
         # init curses
         self.stdscr = curses.initscr()
         curses.noecho()
@@ -37,11 +38,11 @@ class CursedUI(object):
 
         self.Update(None)
         self.Render()
-        
+
     def Stop(self):
         if not self.stdscr:
             return
-        
+
         # deinit curses
         self.stdscr.nodelay(0)
         self.stdscr.keypad(0)
@@ -59,6 +60,7 @@ class CursedUI(object):
             self._currentPositionSide = str(self._oanda.CurrentPositionSide())
             self._availableUnits = str(self._oanda.AvailableUnits())
             self._leverage = str(self._oanda.Leverage())
+            self._unrealizedPnL = str(self._oanda.UnrealizedPNL())
 
         if ValidateDatapoint(datapoint):
             self._currentPrice = str(datapoint["value"])
@@ -68,6 +70,7 @@ class CursedUI(object):
 
         self._stoploss_price = str(self._strategy.GetStopLossPrice())
         self._trailingstop_price = str(self._strategy.GetTrailingStopPrice())
+        self._unrealizedPnL = str(self._oanda.UnrealizedPNL())
 
         self.Render()
 
@@ -79,46 +82,46 @@ class CursedUI(object):
             self.stdscr.addstr(18,22,"(now: buying)",curses.A_STANDOUT)
             self.stdscr.refresh()
             tstatus = self._strategy.TradingStatus()
-            self._strategy.Resume()
+            self._strategy.ResumeTrading()
             self._strategy.Buy()
             self._strategy.SetTradingStatus(tstatus)
-        
+
         # s - sell current instrument
         if c == ord('s'):
             self.stdscr.addstr(18,22,"(now: selling)",curses.A_STANDOUT)
             self.stdscr.refresh()
             tstatus = self._strategy.TradingStatus()
-            self._strategy.Resume()
+            self._strategy.ResumeTrading()
             self._strategy.Sell()
             self._strategy.SetTradingStatus(tstatus)
-            
+
         # c - close open position
         if c == ord('c'):
             self.stdscr.addstr(18,22,"(now: closing positions)",curses.A_STANDOUT)
             self.stdscr.refresh()
             tstatus = self._strategy.TradingStatus()
-            self._strategy.Resume()
+            self._strategy.ResumeTrading()
             self._strategy.ClosePosition()
             self._strategy.SetTradingStatus(tstatus)
-        
+
         # p - pause strategy
         if c == ord('p'):
             self.stdscr.addstr(18,22,"(now: pausing strategy)",curses.A_STANDOUT)
             self.stdscr.refresh()
-            self._strategy.Pause()
+            self._strategy.PauseTrading()
 
         # r - resume strategy
         if c == ord('r'):
             self.stdscr.addstr(18,22,"(now: resuming strategy)",curses.A_STANDOUT)
             self.stdscr.refresh()
-            self._strategy.Resume()
+            self._strategy.ResumeTrading()
 
         # q - quit
         if c == ord('q'):
             self.stdscr.addstr(18,22,"(now: quitting)",curses.A_STANDOUT)
             self.stdscr.refresh()
             self._is_exiting = True
-        
+
     def IsExiting(self):
         return self._is_exiting
 
@@ -133,10 +136,10 @@ class CursedUI(object):
         self.stdscr.erase()
         self.stdscr.addstr(0,0,"OANDA bot",curses.A_UNDERLINE)
 
-        # Current account status        
+        # Current account status
         self.stdscr.addstr(2,0,"Account currency:   "+self._account_currency)
         self.stdscr.addstr(3,0,"Trading instrument: "+self._instrument)
-        
+
         # Ticker and heartbeat
         self.stdscr.addstr(5,0,"Heartbeat: "+self._heartbeatTime)
         self.stdscr.addstr(6,0,"Ticker:    "+str(self._currentPrice))
@@ -146,7 +149,7 @@ class CursedUI(object):
         self.stdscr.addstr(9, 0,"Balance:         "+self._balance)
         self.stdscr.addstr(10,0,"Available units: "+self._availableUnits)
         self.stdscr.addstr(11,0,"Cash invested:   "+self._cashInvested + " leverage: "+self._leverage)
-        self.stdscr.addstr(12,0,"Net Worth:       "+self._netWorth)
+        self.stdscr.addstr(12,0,"Net Worth:       "+self._netWorth + " unrealized PnL: "+self._unrealizedPnL)
 
         # Strategy status
         self.stdscr.addstr(14,0,"Stop Loss price:     "+str(self._stoploss_price))
@@ -154,19 +157,19 @@ class CursedUI(object):
         if self._strategy.TradingStatus():
             status = "running"
         else:
-            status = "paused" 
+            status = "paused"
         self.stdscr.addstr(16,0,"Strategy status:     "+status)
-        
+
         self.stdscr.addstr(18,0,"Available actions:", curses.A_UNDERLINE)
         if self._strategy.TradingStatus():
             command = "(P)ause - pause strategy. Disable trading, but keep tickers coming"
         else:
-            command = "(R)esume - resume strategy. Reenable trading" 
-        
+            command = "(R)esume - resume strategy. Reenable trading"
+
         self.stdscr.addstr(19,0,command)
         self.stdscr.addstr(20,0,"(B)uy - take long position on instrument")
         self.stdscr.addstr(21,0,"(S)ell - take short position on instrument")
         self.stdscr.addstr(22,0,"(C)lose - close position on instrument")
         self.stdscr.addstr(23,0,"(Q)uit - exit")
-        
+
         self.stdscr.refresh()

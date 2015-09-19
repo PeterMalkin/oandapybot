@@ -91,3 +91,7 @@ class StopLoss(Indicator):
     def CancelStop(self):
         self.state = MarketTrend.NO_STOP
         self.current_stop_price = 0.0
+		
+    def IsSet(self):
+        return self.trading_enabled
+		

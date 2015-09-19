@@ -1,4 +1,4 @@
-__all__ = ["candle", "strategy", "heikinashi", "movingaverage", "risk"]
+__all__ = ["candle", "strategy", "heikinashi", "movingaverage", "risk", "trailingstop", "timestop", "takeprofit"]
 
 class Indicator(object):
     def Update(self, data):

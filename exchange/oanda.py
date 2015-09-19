@@ -1,12 +1,15 @@
 # wrapper around oanda's RESTful api
 import datetime
+import re
 import time
 import threading
 import Queue
 from exchange import oandapy
-from logic.candle import Candle 
+from logic.candle import Candle
 from math import floor
 from logic import MarketTrend
+from util.watchdog import WatchDog
+
 
 class OandaPriceStreamer(oandapy.Streamer):
     def __init__(self,environment,api_key,account_id,instrument):
@@ -23,41 +26,52 @@ class OandaPriceStreamer(oandapy.Streamer):
                                        args=(self,)
                                        )
         self._thread.setDaemon(True)
+        self._watchdog = WatchDog()
 
     def SubscribeTicker(self, obj):
         self.ticker_subscribers.append(obj)
-        
+
     def SubscribeHeartbeat(self, obj):
         self.heartbeat_subscribers.append(obj)
-        
+
     def SubscribeUpdates(self, obj):
         self.updates_subscribers.append(obj)
-        
+
     def IsRunning(self):
         return self._thread.isAlive()
-        
+
     def _start(self):
         self.start(accountId=self._account_id,instruments=self._instrument,ignore_heartbeat=False)
-        
+
     def _stop(self):
         self.disconnect()
-        
+
     def Start(self):
+        self._watchdog.Start()
         self._thread.start()
 
     def Stop(self):
+        self._watchdog.Stop()
         self._stop()
         self._thread.join()
 
     def on_success(self, data):
+        self._watchdog.Reset()
         self._queue.put(data)
 
     def UpdateSubscribers(self):
+        # If watchdog fired, throw!
+        if self._watchdog.IsExpired():
+            txt = "Watchdog: have not seen heartbeat from exchange for "
+            txt += str(self._watchdog.watchdog_timeout_seconds) + " seconds"
+            raise Exception(txt)
 
-        if self._queue.empty():
+        data = None
+
+        try:
+            data = self._queue.get(True, 0.1)
+        except:
             return
-
-        data = self._queue.get_nowait()
 
         if not data:
             return
@@ -77,7 +91,7 @@ class OandaPriceStreamer(oandapy.Streamer):
 
         ask = float(data["tick"]["ask"])
         bid = float(data["tick"]["bid"])
-        ts = time.mktime(time.strptime(data["tick"]["time"], '%Y-%m-%dT%H:%M:%S.%fZ')) 
+        ts = time.mktime(time.strptime(data["tick"]["time"], '%Y-%m-%dT%H:%M:%S.%fZ'))
         price = (ask + bid) / 2.0
 
         datapoint = {}
@@ -90,10 +104,12 @@ class OandaPriceStreamer(oandapy.Streamer):
 
 
 class Oanda(object):
-    def __init__(self, api_key, account_id, instrument, account_currency, environment="practice"):
+    def __init__(self, api_key, account_id, instrument, account_currency, home_base_pair, home_base_default_exchange_rate = 1.0, environment="practice"):
         self._api_key = api_key
         self._account_id = account_id
         self._instrument = instrument
+        self._home_base_pair = home_base_pair
+        self._home_base_default_exchange_rate = home_base_default_exchange_rate
         self._account_currency = account_currency
         self._oanda = oandapy.API(environment=environment,access_token=self._api_key)
         self._oanda_price_streamer = OandaPriceStreamer(environment=environment,
@@ -104,13 +120,13 @@ class Oanda(object):
 
     def SubscribeTicker(self, obj):
         self._oanda_price_streamer.SubscribeTicker(obj)
-        
+
     def SubscribeHeartbeat(self, obj):
         self._oanda_price_streamer.SubscribeHeartbeat(obj)
-        
+
     def SubscribeUpdates(self, obj):
         self._oanda_price_streamer.SubscribeUpdates(obj)
-        
+
     def StartPriceStreaming(self):
         self._oanda_price_streamer.Start()
 
@@ -118,7 +134,11 @@ class Oanda(object):
         self._oanda_price_streamer.Stop()
 
     def GetNetWorth(self):
-        response = self._oanda.get_account(self._account_id)
+        try:
+            response = self._oanda.get_account(self._account_id)
+        except:
+            self._oanda_price_streamer.update_necessary = True
+            return 0.0
         return float(response["balance"])
 
     def ClosePosition(self):
@@ -129,7 +149,12 @@ class Oanda(object):
         retValue = {}
         netWorth = self.GetNetWorth()
         retValue[self._account_currency] = netWorth
-        response = self._oanda.get_positions(self._account_id)
+
+        try:
+            response = self._oanda.get_positions(self._account_id)
+        except:
+            self._oanda_price_streamer.update_necessary = True
+            return retValue
 
         if not response or not response["positions"]:
             return retValue
@@ -140,28 +165,38 @@ class Oanda(object):
         return retValue
 
     def CashInvested(self):
-        response = self._oanda.get_positions(self._account_id)
-        if not response or not response["positions"]:
+        try:
+            response = self._oanda.get_account(self._account_id)
+            marginUsed = float(response["marginUsed"])
+            return marginUsed
+        except:
             return 0.0
-
-        cash = 0.0
-        for item in response["positions"]:
-            cash += float(item["units"]) * float(item["avgPrice"])
-
-        return cash
 
     def CurrentPosition(self):
         try:
             response = self._oanda.get_position(self._account_id, self._instrument)
             return int(response["units"])
         except:
+            self._oanda_price_streamer.update_necessary = True
             return 0
 
     def Leverage(self):
-        response = self._oanda.get_account(self._account_id)
+        try:
+            response = self._oanda.get_account(self._account_id)
+        except:
+            self._oanda_price_streamer.update_necessary = True
+            return 0.0
         margin_rate = float(response["marginRate"])
         leverage = 1.0 / margin_rate
         return leverage
+
+    def UnrealizedPNL(self):
+        try:
+            response = self._oanda.get_account(self._account_id)
+        except:
+            self._oanda_price_streamer.update_necessary = True
+            return 0.0
+        return float(response["unrealizedPl"])
 
     def CurrentPositionSide(self):
         try:
@@ -171,19 +206,30 @@ class Oanda(object):
             if response["side"] == "buy":
                 return MarketTrend.ENTER_LONG
         except:
+            self._oanda_price_streamer.update_necessary = True
             return MarketTrend.NONE
 
     def AvailableUnits(self):
-        response = self._oanda.get_account(self._account_id)
-        response["balance"]
-        margin_available = float(response["marginAvail"])
-        margin_rate = float(response["marginRate"])
-        leverage = 1.0 / margin_rate
-        response = self._oanda.get_prices(instruments=self._instrument)
-        exchange_rate = ( float(response["prices"][0]["ask"]) + float(response["prices"][0]["bid"]) ) / 2.0
-        return int(floor( margin_available * leverage / exchange_rate ))
 
-    def Sell(self, units):       
+        exchange_rate = self._home_base_default_exchange_rate
+        try:
+            response = self._oanda.get_prices(instruments=self._home_base_pair)
+            exchange_rate = ( response.get("prices")[0]["bid"] + response.get("prices")[0]["ask"] ) / 2.0
+        except:
+            pass
+
+        try:
+            response = self._oanda.get_account(self._account_id)
+            margin_available = float(response["marginAvail"])
+            margin_rate = float(response["marginRate"])
+            leverage = 1.0 / margin_rate
+            response = self._oanda.get_prices(instruments=self._instrument)
+            return int(floor( margin_available * leverage / exchange_rate ))
+        except:
+            self._oanda_price_streamer.update_necessary = True
+            return 0
+
+    def Sell(self, units):
         self._oanda.create_order(self._account_id,
                                  instrument=self._instrument,
                                  units=units,
@@ -200,7 +246,7 @@ class Oanda(object):
                                  type='market'
                                 )
         self._oanda_price_streamer.update_necessary = True
-        
+
     def GetCandles(self, number_of_last_candles_to_get = 0, size_of_candles_in_minutes = 120):
         Candles = []
 
@@ -273,3 +319,12 @@ class Oanda(object):
             return "D1"
         # default: two hour candles
         return "H2"
+
+
+def OandaExceptionCode(exception):
+    if not exception:
+        return 0
+    match = re.match("OANDA API returned error code ([0-9]+)\s.*", str(exception))
+    if not match:
+        return 1
+    return match.group(1)

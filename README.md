@@ -53,3 +53,9 @@ To run:
 
 	1. Modify settings.py with your oanda credentials
 	2. python main.py
+
+To backtest:
+============
+
+	1. Modify settings.py to point your bot to a datafile
+	2. python backtest.py

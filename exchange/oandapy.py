@@ -252,7 +252,7 @@ class API(EndpointsMixin, object):
         try:
             response = func(url, **request_args)
         except requests.RequestException as e:
-            print (str(e))
+            raise OandaError(e)
         content = response.content.decode('utf-8')
 
         content = json.loads(content)

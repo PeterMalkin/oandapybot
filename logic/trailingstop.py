@@ -4,7 +4,6 @@ from logic import MarketTrend
 from logic import Indicator, ValidateDatapoint
 from logic.candle import Candle
 
-
 class TrailingStop(Indicator):
 
     def __init__(self, atr_period_length = 7):
@@ -13,7 +12,7 @@ class TrailingStop(Indicator):
         self._high = []
         self._low = []
         self._close = []
-        self.position_type = MarketTrend.ENTER_LONG
+        self.position_type = MarketTrend.NO_STOP
         self.current_stop_price = 0.0
         self.state = MarketTrend.NO_STOP
         self.trading_enabled = False
@@ -101,9 +100,9 @@ class TrailingStop(Indicator):
         ATR = talib.ATR(high, low, close, timeperiod=self.period-1)[-1]
 
         if ( position_type == MarketTrend.ENTER_LONG ):
-            stop_price = self.peak_price - 2.0*ATR
+            stop_price = self.peak_price - 1.1 * ATR
         elif ( position_type == MarketTrend.ENTER_SHORT ):
-            stop_price = self.peak_price + 2.0*ATR
+            stop_price = self.peak_price + 1.1 * ATR
         else:
             stop_price = 0.0
 
@@ -114,3 +113,6 @@ class TrailingStop(Indicator):
         self.current_stop_price = 0.0
         self.peak_price = 0.0
         self.trading_enabled = False
+
+    def IsSet(self):
+        return self.trading_enabled
