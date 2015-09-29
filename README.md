@@ -48,14 +48,20 @@ To install:
 	$ pip install requirements.txt
 
 
-To run:
-=======
-
-	1. Modify settings.py with your oanda credentials
-	2. python main.py
-
 To backtest:
 ============
 
 	1. Modify settings.py to point your bot to a datafile
 	2. python backtest.py
+
+To make money:
+============
+
+	1. Modify logic/strategy.py till you happy with backtest results
+	2. Deposit money into your oanda account
+
+To run:
+=======
+
+	1. Modify settings.py with your oanda credentials
+	2. python main.py
