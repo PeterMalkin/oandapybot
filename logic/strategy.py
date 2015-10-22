@@ -149,8 +149,6 @@ class Strategy(object):
 
         try:
             self._oanda.ClosePosition()
-            self._stoploss.CancelTakeProfit()
-            self._trailingstop.CancelTakeProfit()
         except Exception as e:
             self._catchTradeException(e,"close")
 
