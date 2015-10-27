@@ -107,23 +107,25 @@ class OandaBacktest(object):
 
         if self.balance[INSTRUMENT] > 0.0:
             realizedPnL = (abs(self.balance[INSTRUMENT]) * self.current_price) - (self.cash_invested)
+            realizedPnL *= self.Leverage()
             self.balance[HOME_CURRENCY] += self.cash_invested / self.Leverage()
         else:
             realizedPnL = (self.cash_invested) - (abs(self.balance[INSTRUMENT]) * self.current_price)
+            realizedPnL *= self.Leverage()
             self.balance[HOME_CURRENCY] -= self.cash_invested / self.Leverage()
-
+            
+        self.balance[HOME_CURRENCY] += realizedPnL
+        self.balance[INSTRUMENT] = 0.0
+        self.position = 0.0
+        
         logging_str  = "Trade (" + str(self.last_update_timestamp) + "): "
         logging_str += str(self.position_side)
         logging_str += " from: " + str(self.last_entered_price)
         logging_str += " to: " + str(self.current_price)
         logging_str += ". REalized PnL: " + str(realizedPnL)
         logging_str += " NetWorth: " + str(self.GetNetWorth())
-
         print logging_str
-            
-        self.balance[HOME_CURRENCY] += realizedPnL
-        self.balance[INSTRUMENT] = 0.0
-        self.position = 0.0
+        
         self.position_side = MarketTrend.NONE
 
         self.total_PnL += realizedPnL
