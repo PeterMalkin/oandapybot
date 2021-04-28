@@ -1,4 +1,5 @@
 import backtrader
+import btplotting
 import datetime
 import importlib
 import settings
@@ -68,8 +69,10 @@ def backtest():
     cerebro.adddata(data)
     cerebro.addstrategy(strategy_class(settings.STRATEGY_NAME))
     cerebro.broker.setcommission(commission=0.001)
+    cerebro.addanalyzer(backtrader.analyzers.SharpeRatio)
     cerebro.run()
-    cerebro.plot()
+    plotter = btplotting.BacktraderPlotting(style='bar')
+    cerebro.plot(plotter)
 
 
 if __name__ == "__main__":

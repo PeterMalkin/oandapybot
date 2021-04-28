@@ -4,3 +4,4 @@ matplotlib
 ta-lib>=0.4.8
 backtrader
 git+https://github.com/happydasch/btoandav20@v0.2.1#egg=btoandav20
+git+https://github.com/happydasch/btplotting@v0.1.1#egg=btplotting
