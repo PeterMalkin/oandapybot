@@ -56,6 +56,7 @@ class Email(object):
         e['To'] = self.email_to
         
         s = smtplib.SMTP(self.email_server,self.email_port)
+        s.starttls()
         s.login(self.email_from,self.email_password)
         s.sendmail(self.email_from,self.email_to,e.as_string())
         s.quit()

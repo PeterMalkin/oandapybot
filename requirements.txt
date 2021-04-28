@@ -1,5 +1,6 @@
-numpy>=1.8.2
+Cython
+numpy
+matplotlib
 ta-lib>=0.4.8
-requests>=2.2.1
-curses>=2.03
-matplotlib>=1.3.1
+backtrader
+git+https://github.com/happydasch/btoandav20@v0.2.1#egg=btoandav20

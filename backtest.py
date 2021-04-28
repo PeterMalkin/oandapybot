@@ -1,37 +1,40 @@
-from backtest.oanda_backtest import OandaBacktest
-from logic.strategy import Strategy
-from settings import *
-from util.plot import StrategyPlot
+import backtrader
+import importlib
+import settings
 
-def PlotResults(plotData):
-    if not plotData:
-        return
-    splot = StrategyPlot(plotData, 2)
-    splot.Plot("RawPrice",1, "r-")
-    splot.Plot("Sell", 1, "ro")
-    splot.Plot("Buy", 1, "g^")
-    splot.Plot("Close", 1, "b*")
-    splot.Plot("StopLoss", 1, "y-")
-    splot.Plot("TrailingStop", 1, "y-")
-    splot.Plot("NetWorth", 2, "r-")
-    splot.Show()
 
-def Main():
+class HistDataCSVData(backtrader.feeds.GenericCSVData):
+    params = (
+        ('nullvalue', float('NaN')),
+        ('dtformat', 1),
+        ('headers', False),
+        ('time', -1),
+        ('datetime', 0),
+        ('open', 1),
+        ('close', 2),
+        ('high', 3),
+        ('low', 4),
+        ('volume', 5),
+        ('openinterest', -1),
+        ('reverse', True),
+        ('separator', ';'),
+    )
 
-    oanda_backtest = OandaBacktest(BACKTESTING_FILENAME)
-    
-    strategy = Strategy(oanda_backtest,
-                        CANDLES_MINUTES,
-                        email=None,
-                        risk=MAX_PERCENTAGE_ACCOUNT_AT_RISK)
 
-    strategy.Start()
+def strategy_class(class_name):
+    module = importlib.import_module("strategy")
+    class_ = getattr(module, class_name)
+    return class_
+                
+def backtest():
+    cerebro = backtrader.Cerebro()
+    data = HistDataCSVData(dataname=settings.BACKTESTING_FILENAME,dtformat="%Y%m%d %H%M%S")
+    cerebro.adddata(data)
+    cerebro.addstrategy(strategy_class(settings.STRATEGY_NAME))
+    cerebro.broker.setcommission(commission=0.001)
+    cerebro.run()
+    cerebro.plot()
 
-    while oanda_backtest.IsRunning():
-        oanda_backtest.UpdateSubscribers()
-
-    plotData = oanda_backtest.GetPlotData()
-    PlotResults(plotData)
 
 if __name__ == "__main__":
-    Main()
+    backtest()
